@@ -124,7 +124,7 @@ $app->post('/urls/{url_id}/checks', function ($request, $response, $args) use ($
     }
 
     try {
-        $document = new Document($urlName[0]['name'], true);
+        $document = new Document($urlName['name'], true);
         $h1 = optional($document->first('h1'))->text();
         $title = optional($document->first('title'))->text();
         $content = optional($document->first('meta[name="description"]'))->attr('content');
