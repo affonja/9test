@@ -123,16 +123,16 @@ $app->post('/urls/{url_id}/checks', function ($request, $response, $args) use ($
         return $response->withStatus(302)->withHeader('Location', $target);
     }
 
-    set_error_handler(function ($errno, $errstr, $errfile, $errline) {
-        throw new ErrorException($errstr, $errno, 0, $errfile, $errline);
-    });
+    // set_error_handler(function ($errno, $errstr, $errfile, $errline) {
+    //     throw new ErrorException($errstr, $errno, 0, $errfile, $errline);
+    // });
 
     try {
         $document = new Document($urlName['name'], true);
         $h1 = optional($document->first('h1'))->text();
         $title = optional($document->first('title'))->text();
         $content = optional($document->first('meta[name="description"]'))->attr('content');
-    } catch (ErrorException | Exception $e) {
+    } catch (Exception $e) {
         $this->get('db')->insert($sql, [
             'url_id' => $urlId,
             'statusCode' => $e->getCode(),
