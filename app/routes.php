@@ -9,6 +9,7 @@ use App\Database;
 use Carbon\Carbon;
 use DiDom\Document;
 use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\TooManyRedirectsException;
 use Slim\App;
 use GuzzleHttp\Client;
 use Illuminate\Support;
@@ -108,7 +109,7 @@ $app->post('/urls/{url_id}/checks', function ($request, $response, $args) use ($
     $client = new Client();
     try {
         $guzzle_response = $client->get($urlName['name'], ['allow_redirects' => false]);
-    } catch (ClientException|ServerException|RequestException|ConnectException $e) {
+    } catch (ClientException | ServerException | TooManyRedirectsException | RequestException | ConnectException $e) {
         $statusCode = $e->getCode() ?: 0;
         $message = $e->getMessage() ?: 'not connect';
         $this->get('db')->insert($sql, [
