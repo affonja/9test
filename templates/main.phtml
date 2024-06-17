@@ -1,0 +1,32 @@
+<?php
+/** @var string $error */
+/** @var string $url */
+?>
+
+<main>
+    <div class="container">
+        <div class="row justify-content-md-center mt-3">
+            <div class="col-md-8 bg-secondary-subtle px-5 py-5 border border-dark-subtle rounded">
+                <h1 class="title display-3">Анализатор страниц</h1>
+                <p class="slogan mt-2 fs-5 fw-light">Бесплатно проверяйте сайты на SEO пригодность</p>
+                <form class="row g-3" method="post" action="<?= $this->getAttribute('routes')->urlFor('urls.store'); ?>"
+                      name="forma">
+                    <div class="mb-3 col-8">
+                        <label for="adress" class="visually-hidden">Адрес сайта</label>
+                        <input type="text" class="form-control fs-5 pb-2 <?= isset($error) ? 'is-invalid' : ''; ?>"
+                               placeholder="https://example.com"
+                               name="url[name]"
+                               id="adress" value="<?= $url ?? ''; ?>">
+                        <div class="invalid-feedback"><?= $error ?? ''; ?></div>
+                    </div>
+                    <div class="col-2">
+                        <input type="submit" class="btn btn-primary btn-lg ms-3 px-5 text-uppercase mx-3"
+                               value="Проверить">
+                    </div>
+                </form>
+            </div>
+
+
+        </div>
+    </div>
+</main>
