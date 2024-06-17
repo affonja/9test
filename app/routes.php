@@ -11,11 +11,11 @@ use DiDom\Document;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\TooManyRedirectsException;
 use Slim\App;
-use GuzzleHttp\Client;
+use GuzzleHttp\Client as GuzzClient;
 use Illuminate\Support;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
-use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\GuzzleException as GuzzExeption;
 
 $app->get('/', function ($request, $response) {
     return $this->get('renderer')->render($response, 'main.phtml');
@@ -93,45 +93,44 @@ $app->get('/urls/{url_id:[0-9]+}', function ($request, $response, $args) {
 })->setName('urls.show');
 
 $app->post('/urls/{url_id}/checks', function ($request, $response, $args) use ($app) {
-    $urlId = $args['url_id'];
-    $target = $app->getRouteCollector()->getRouteParser()->urlFor('urls.show', ['url_id' => $urlId]);
-    $urlName = $this->get('db')->getFirst("SELECT name FROM urls WHERE id=:url_id", ['url_id' => $urlId]);
-
-    if (!$urlName) {
-        $this->get('flash')->addMessage('danger', 'Ошибка запроса к бд');
+    $url_id = $args['url_id'];
+    $target = $app->getRouteCollector()->getRouteParser()->urlFor('urls.show', ['url_id' => $url_id]);
+    $url_name = $this->get('db')->getAll("SELECT name FROM urls WHERE id=:url_id", ['url_id' => $url_id]);
+    if (!$url_name) {
+        $this->get('flash')->addMessage('error', 'Ошибка запроса к бд');
         return $response->withStatus(302)->withHeader('Location', $target);
     }
-
     $date = Carbon::now()->toDateTimeString();
+
     $sql = "INSERT INTO url_checks(url_id, status_code, h1, title, description, created_at)
             VALUES (:url_id, :statusCode, :h1, :title, :content, :date);";
 
-    $client = new Client();
+    $client = new GuzzClient();
     try {
-        $guzzle_response = $client->get($urlName['name'], ['allow_redirects' => false]);
-    } catch (ClientException | ServerException | TooManyRedirectsException | RequestException | ConnectException $e) {
-        $statusCode = $e->getCode() ?: 0;
-        $message = $e->getMessage() ?: 'not connect';
+        $response = $client->get($url_name[0]['name']);
+    } catch (GuzzExeption $e) {
+        $this->get('flash')->addMessage('error', 'Ошибка при обращении к сайту');
+        $statusCode = $e->getCode();
         $this->get('db')->insert($sql, [
-            'url_id' => $urlId,
+            'url_id' => $url_id,
             'statusCode' => $statusCode,
             'h1' => null,
             'title' => null,
             'content' => null,
             'date' => $date
         ]);
-        $this->get('flash')->addMessage('danger', "$statusCode $message");
         return $response->withStatus(302)->withHeader('Location', $target);
     }
 
+    $statusCode = $response->getStatusCode();
     try {
-        $document = new Document($urlName['name'], true);
+        $document = new Document($url_name[0]['name'], true);
         $h1 = optional($document->first('h1'))->text();
         $title = optional($document->first('title'))->text();
         $content = optional($document->first('meta[name="description"]'))->attr('content');
         $this->get('db')->insert($sql, [
-            'url_id' => $urlId,
-            'statusCode' => $guzzle_response->getStatusCode(),
+            'url_id' => $url_id,
+            'statusCode' => $statusCode,
             'h1' => (isset($h1)) ? Support\Str::limit($h1, 255) : null,
             'title' => (isset($title)) ? Support\Str::limit($title, 255) : null,
             'content' => (isset($content)) ? Support\Str::limit($content, 1000) : null,
@@ -141,8 +140,8 @@ $app->post('/urls/{url_id}/checks', function ($request, $response, $args) use ($
         return $response->withStatus(302)->withHeader('Location', $target);
     } catch (Exception $e) {
         $this->get('db')->insert($sql, [
-            'url_id' => $urlId,
-            'statusCode' => $guzzle_response->getStatusCode(),
+            'url_id' => $url_id,
+            'statusCode' => $statusCode,
             'h1' => 'Ошибка при обращении к сайту',
             'title' => 'Ошибка при обращении к сайту',
             'content' => null,
