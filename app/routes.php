@@ -108,7 +108,7 @@ $app->post('/urls/{url_id}/checks', function ($request, $response, $args) use ($
     $client = new Client();
     try {
         $guzzle_response = $client->get($urlName['name'], ['allow_redirects' => false]);
-    } catch (ClientException | ServerException | RequestException | ConnectException $e) {
+    } catch (ClientException|ServerException|RequestException|ConnectException $e) {
         $statusCode = $e->getCode() ?: 0;
         $message = $e->getMessage() ?: 'not connect';
         $this->get('db')->insert($sql, [
@@ -123,39 +123,33 @@ $app->post('/urls/{url_id}/checks', function ($request, $response, $args) use ($
         return $response->withStatus(302)->withHeader('Location', $target);
     }
 
-    // set_error_handler(function ($errno, $errstr, $errfile, $errline) {
-    //     throw new ErrorException($errstr, $errno, 0, $errfile, $errline);
-    // });
-
     try {
-        $document = new Document($urlName['name'], true);
+        $document = new Document($urlName[0]['name'], true);
         $h1 = optional($document->first('h1'))->text();
         $title = optional($document->first('title'))->text();
         $content = optional($document->first('meta[name="description"]'))->attr('content');
+        $this->get('db')->insert($sql, [
+            'url_id' => $urlId,
+            'statusCode' => $guzzle_response->getStatusCode(),
+            'h1' => (isset($h1)) ? Support\Str::limit($h1, 255) : null,
+            'title' => (isset($title)) ? Support\Str::limit($title, 255) : null,
+            'content' => (isset($content)) ? Support\Str::limit($content, 1000) : null,
+            'date' => $date
+        ]);
+        $this->get('flash')->addMessage('success', 'Страница успешно проверена');
+        return $response->withStatus(302)->withHeader('Location', $target);
     } catch (Exception $e) {
         $this->get('db')->insert($sql, [
             'url_id' => $urlId,
-            'statusCode' => $e->getCode(),
-            'h1' => null,
-            'title' => null,
-            'content' => 'Ошибка при обращении к сайту',
+            'statusCode' => $guzzle_response->getStatusCode(),
+            'h1' => 'Ошибка при обращении к сайту',
+            'title' => 'Ошибка при обращении к сайту',
+            'content' => null,
             'date' => $date
         ]);
-        $this->get('flash')->addMessage('danger', $e->getMessage());
+        $this->get('flash')->addMessage('error', 'Ошибка при обращении к сайту: ' . $e->getMessage());
         return $response->withStatus(302)->withHeader('Location', $target);
     }
-
-    $this->get('db')->insert($sql, [
-        'url_id' => $urlId,
-        'statusCode' => $guzzle_response->getStatusCode(),
-        'h1' => (isset($h1)) ? Support\Str::limit($h1, 255) : null,
-        'title' => (isset($title)) ? Support\Str::limit($title, 255) : null,
-        'content' => (isset($content)) ? Support\Str::limit($content, 1000) : null,
-        'date' => $date
-    ]);
-
-    $this->get('flash')->addMessage('success', 'Страница успешно проверена');
-    return $response->withStatus(302)->withHeader('Location', $target);
 })->setName('urls.checks.store');
 
 $app->map(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], '/{routes:.+}', function ($request, $response) {
